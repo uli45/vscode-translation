@@ -17,7 +17,6 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:uli-translation.translate",
     "onLanguage:javascript",
     "onLanguage:typescript",
     "onLanguage:html",
