@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- 背景圆形 -->
+  <circle cx="64" cy="64" r="60" fill="#2d8cf0" />
+  
+  <!-- 翻译图标 - 两个对话框 -->
+  <rect x="30" y="40" width="40" height="25" rx="5" fill="white" />
+  <rect x="58" y="63" width="40" height="25" rx="5" fill="white" />
+  
+  <!-- 翻译箭头 -->
+  <path d="M45 75 L55 53" stroke="white" stroke-width="4" stroke-linecap="round" />
+  <path d="M55 53 L65 75" stroke="white" stroke-width="4" stroke-linecap="round" />
+  
+  <!-- 文本符号 -->
+  <text x="38" y="57" font-family="Arial" font-size="14" font-weight="bold" fill="#2d8cf0">A</text>
+  <text x="78" y="80" font-family="Arial" font-size="14" font-weight="bold" fill="#2d8cf0">文</text>
+</svg>

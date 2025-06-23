@@ -1,17 +1,19 @@
 /**
- * VSCode翻译插件 - 使用百度翻译API
+ * VSCode翻译插件 - 支持百度翻译API和腾讯云机器翻译API
  * 
- * 该插件允许用户选择文本并使用百度翻译API进行翻译
- * 支持在VSCode设置中配置百度翻译API的appid和key
+ * 该插件允许用户选择文本并使用翻译API进行翻译
+ * 支持在VSCode设置中配置百度翻译API和腾讯云机器翻译API
  * 
  * @author uli
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 // VSCode扩展API
 import * as vscode from "vscode";
 // 百度翻译API封装
 import { BaiduTranslator } from "./baidu-translator";
+// 腾讯云机器翻译API封装
+import { TencentTranslator } from "./tencent-translator";
 // 工具函数
 import { escapeHtml } from "./utils";
 
@@ -39,7 +41,7 @@ function formatSize(bytes: number): string {
  * 
  * @param context 扩展上下文，用于注册命令和管理资源
  */
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   // 输出诊断信息到控制台
   console.log(
     'Congratulations, your extension "uli-translation" is now active!'
@@ -48,6 +50,9 @@ export function activate(context: vscode.ExtensionContext) {
   // 创建百度翻译器实例，并传入扩展上下文以启用缓存功能
   const baiduTranslator = new BaiduTranslator(context);
   
+  // 创建腾讯翻译器实例，并传入扩展上下文以启用缓存功能
+  const tencentTranslator = new TencentTranslator(context);
+  
   // 从配置中读取缓存设置
   const config = vscode.workspace.getConfiguration('uliTranslation.cache');
   const expirationDays = config.get<number>('expirationDays') || 3;
@@ -55,40 +60,80 @@ export function activate(context: vscode.ExtensionContext) {
   
   // 初始化翻译缓存，使用配置的过期时间和大小限制
   baiduTranslator.initCache(context, expirationDays, maxCacheSizeMB);
+  tencentTranslator.initCache(context, expirationDays, maxCacheSizeMB);
   
-  // 设置定时器，每10分钟记录一次缓存性能指标
+  // 设置定时器，每30分钟记录一次缓存性能指标
   const cacheMetricsInterval = setInterval(() => {
-    const metrics = baiduTranslator.getCacheMetrics();
-    if (metrics) {
-      console.log(`缓存性能指标 - 命中率: ${metrics.hitRate.toFixed(2)}%, 平均响应时间: ${metrics.avgResponseTime.toFixed(2)}ms, 缓存大小: ${formatSize(metrics.size)}`); 
+    const baiduMetrics = baiduTranslator.getCacheMetrics();
+    if (baiduMetrics) {
+      console.log(`百度翻译缓存性能指标 - 命中率: ${baiduMetrics.hitRate.toFixed(2)}%, 平均响应时间: ${baiduMetrics.avgResponseTime.toFixed(2)}ms, 缓存大小: ${formatSize(baiduMetrics.size)}`); 
     }
-  }, 10 * 60 * 1000); // 10分钟
+    
+    const tencentMetrics = tencentTranslator.getCacheMetrics();
+    if (tencentMetrics) {
+      console.log(`腾讯翻译缓存性能指标 - 命中率: ${tencentMetrics.hitRate.toFixed(2)}%, 平均响应时间: ${tencentMetrics.avgResponseTime.toFixed(2)}ms, 缓存大小: ${formatSize(tencentMetrics.size)}`); 
+    }
+  }, 30 * 60 * 1000); // 30分钟
   
   // 将定时器添加到订阅列表，确保插件停用时正确清理
   context.subscriptions.push({ dispose: () => clearInterval(cacheMetricsInterval) });
   
   // 检查是否首次安装或配置无效，并提示用户进行配置
-  checkAndPromptForConfiguration(baiduTranslator);
+  const baiduConfigValid = await checkAndPromptForConfiguration(baiduTranslator, 'baidu');
+  const tencentConfigValid = await checkAndPromptForConfiguration(tencentTranslator, 'tencent');
   
   // 检查快捷键是否与其他扩展冲突
   checkKeybindingConflicts();
   
-  // 监听配置变更事件，当百度翻译API配置或缓存配置发生变化时重新检查
-  const configListener = vscode.workspace.onDidChangeConfiguration(event => {
-    if (event.affectsConfiguration('uliTranslation.baidu')) {
-      // 百度翻译API配置已更改，重新检查配置有效性
-      checkAndPromptForConfiguration(baiduTranslator, false);
-    }
+  // 监听配置变更
+  const configListener = vscode.workspace.onDidChangeConfiguration(async (event) => {
+    // 检查是否修改了百度翻译API相关配置
+    const affectsBaiduConfig = event.affectsConfiguration('uliTranslation.baidu');
     
-    // 如果缓存配置发生变化，重新初始化缓存
-    if (event.affectsConfiguration('uliTranslation.cache')) {
+    // 如果修改了百度翻译API配置，则重新检查配置有效性
+     if (affectsBaiduConfig) {
+       // 重新加载百度翻译器配置
+       baiduTranslator.reloadConfig();
+       // 检查配置并提示用户
+       await checkAndPromptForConfiguration(baiduTranslator, 'baidu', false);
+     }
+     
+     // 检查是否修改了腾讯翻译API相关配置
+     const affectsTencentConfig = event.affectsConfiguration('uliTranslation.tencent');
+     
+     // 如果修改了腾讯翻译API配置，则重新检查配置有效性
+     if (affectsTencentConfig) {
+       // 重新加载腾讯翻译器配置
+       tencentTranslator.reloadConfig();
+       // 检查配置并提示用户
+       await checkAndPromptForConfiguration(tencentTranslator, 'tencent', false);
+     }
+    
+    // 检查是否修改了缓存相关配置
+    const affectsCacheConfig = event.affectsConfiguration('uliTranslation.cache');
+    
+    // 如果修改了缓存配置，则重新初始化缓存
+    if (affectsCacheConfig) {
+      // 获取新的缓存配置
       const config = vscode.workspace.getConfiguration('uliTranslation.cache');
       const expirationDays = config.get<number>('expirationDays') || 3;
-      const maxCacheSizeMB = config.get<number>('maxSizeMB') || 50;
+      const maxCacheSizeMB = config.get<number>('maxSizeMB') || 20;
       
-      // 重新初始化翻译缓存
+      // 重新初始化百度翻译器的缓存
       baiduTranslator.initCache(context, expirationDays, maxCacheSizeMB);
+      // 重新初始化腾讯翻译器的缓存
+      tencentTranslator.initCache(context, expirationDays, maxCacheSizeMB);
       console.log(`缓存配置已更新：过期时间=${expirationDays}天，大小限制=${maxCacheSizeMB}MB`);
+    }
+    
+    // 检查是否修改了默认翻译器配置
+    const affectsDefaultTranslator = event.affectsConfiguration('uliTranslation.defaultTranslator');
+    
+    // 如果修改了默认翻译器配置，则记录日志
+    if (affectsDefaultTranslator) {
+      const config = vscode.workspace.getConfiguration('uliTranslation');
+      const defaultTranslator = config.get<string>('defaultTranslator', 'baidu');
+      console.log(`默认翻译器已更改为: ${defaultTranslator}`);
     }
   });
   
@@ -113,11 +158,27 @@ export function activate(context: vscode.ExtensionContext) {
    */
   const showCacheMetricsDisposable = vscode.commands.registerCommand(
     "uli-translation.showCacheMetrics",
-    () => {
-      const metrics = baiduTranslator.getCacheMetrics();
-      if (metrics) {
-        const message = `缓存性能指标:\n- 命中率: ${metrics.hitRate.toFixed(2)}%\n- 平均响应时间: ${metrics.avgResponseTime.toFixed(2)}ms\n- 缓存大小: ${formatSize(metrics.size)}`;
-        vscode.window.showInformationMessage(message);
+    async () => {
+      // 获取百度翻译缓存性能指标
+      const baiduMetrics = baiduTranslator.getCacheMetrics();
+      // 获取腾讯翻译缓存性能指标
+      const tencentMetrics = tencentTranslator.getCacheMetrics();
+      
+      if (baiduMetrics || tencentMetrics) {
+        let message = "缓存性能指标:\n";
+        
+        // 添加百度翻译缓存性能指标
+        if (baiduMetrics) {
+          message += `\n百度翻译缓存:\n- 命中率: ${baiduMetrics.hitRate.toFixed(2)}%\n- 平均响应时间: ${baiduMetrics.avgResponseTime.toFixed(2)}ms\n- 缓存大小: ${formatSize(baiduMetrics.size)}\n`;
+        }
+        
+        // 添加腾讯翻译缓存性能指标
+        if (tencentMetrics) {
+          message += `\n腾讯云翻译缓存:\n- 命中率: ${tencentMetrics.hitRate.toFixed(2)}%\n- 平均响应时间: ${tencentMetrics.avgResponseTime.toFixed(2)}ms\n- 缓存大小: ${formatSize(tencentMetrics.size)}`;
+        }
+        
+        // 显示性能指标
+        await vscode.window.showInformationMessage(message, { modal: true });
         console.log(message);
       } else {
         vscode.window.showWarningMessage("缓存未初始化或无性能数据");
@@ -132,9 +193,22 @@ export function activate(context: vscode.ExtensionContext) {
   const clearCacheDisposable = vscode.commands.registerCommand(
     "uli-translation.clearCache",
     () => {
+      let cacheCleared = false;
+      
+      // 清空百度翻译缓存
       if (baiduTranslator.cache) {
         baiduTranslator.cache.clear();
-        vscode.window.showInformationMessage("翻译缓存已清空");
+        cacheCleared = true;
+      }
+      
+      // 清空腾讯翻译缓存
+      if (tencentTranslator.cache) {
+        tencentTranslator.cache.clear();
+        cacheCleared = true;
+      }
+      
+      if (cacheCleared) {
+        vscode.window.showInformationMessage("所有翻译缓存已清空");
       } else {
         vscode.window.showWarningMessage("缓存未初始化");
       }
@@ -143,30 +217,66 @@ export function activate(context: vscode.ExtensionContext) {
 
   /**
    * 注册翻译命令
-   * 该命令获取用户选中的文本，调用百度翻译API进行翻译，并在侧边栏显示结果
+   * 该命令获取用户选中的文本，让用户选择翻译API，然后进行翻译，并显示结果
    */
   const translateDisposable = vscode.commands.registerCommand(
     "uli-translation.translate",
     async () => {
       try {
-        // 检查百度翻译API配置是否有效
-        if (!baiduTranslator.isConfigValid()) {
-          // 配置无效，提示用户进行设置
-          const message = "百度翻译API配置无效，是否前往设置？";
+        // 检查是否有可用的翻译API配置
+        const baiduValid = baiduTranslator.isConfigValid();
+        const tencentValid = tencentTranslator.isConfigValid();
+        
+        if (!baiduValid && !tencentValid) {
+          // 两种API配置都无效，提示用户进行设置
+          const message = "翻译API配置无效，请先配置百度翻译API或腾讯云机器翻译API";
           const result = await vscode.window.showWarningMessage(
             message,
-            "前往设置",
+            "配置百度翻译",
+            "配置腾讯翻译",
             "取消"
           );
           
-          // 如果用户选择前往设置，则打开设置页面
-          if (result === "前往设置") {
+          // 根据用户选择打开相应的设置页面
+          if (result === "配置百度翻译") {
             await vscode.commands.executeCommand(
               "workbench.action.openSettings",
               "uliTranslation.baidu"
             );
+          } else if (result === "配置腾讯翻译") {
+            await vscode.commands.executeCommand(
+              "workbench.action.openSettings",
+              "uliTranslation.tencent"
+            );
           }
           return;
+        }
+        
+        // 确定要使用的翻译器
+        let translator: BaiduTranslator | TencentTranslator;
+        let apiType: 'baidu' | 'tencent';
+        
+        // 从配置中获取默认翻译器设置
+        const config = vscode.workspace.getConfiguration('uliTranslation');
+        const defaultTranslator = config.get<'baidu' | 'tencent'>('defaultTranslator', 'baidu');
+        
+        // 根据默认设置和可用性确定要使用的翻译器
+        if (defaultTranslator === 'baidu' && baiduValid) {
+          // 用户默认选择百度翻译且配置有效
+          apiType = 'baidu';
+          translator = baiduTranslator;
+        } else if (defaultTranslator === 'tencent' && tencentValid) {
+          // 用户默认选择腾讯云翻译且配置有效
+          apiType = 'tencent';
+          translator = tencentTranslator;
+        } else if (baiduValid) {
+          // 默认选择的翻译器配置无效，但百度翻译配置有效
+          apiType = 'baidu';
+          translator = baiduTranslator;
+        } else {
+          // 默认选择的翻译器配置无效，使用腾讯云翻译（此时腾讯云翻译配置必定有效）
+          apiType = 'tencent';
+          translator = tencentTranslator;
         }
 
         // 获取当前活动的编辑器
@@ -187,11 +297,12 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // 在状态栏显示翻译进行中的提示
-        const statusBarMessage = vscode.window.setStatusBarMessage("正在翻译为英文...");
+        const apiName = apiType === 'baidu' ? '百度' : '腾讯云';
+        const statusBarMessage = vscode.window.setStatusBarMessage(`正在使用${apiName}翻译为英文...`);
 
         try {
-          // 调用百度翻译API进行翻译（英译中）
-          const result = await baiduTranslator.translate(text, 'auto', 'en');
+          // 调用选定的翻译API进行翻译（自动检测语言到英文）
+          const result = await translator.translate(text, 'auto', 'en');
           
           // 清除状态栏消息
           statusBarMessage.dispose();
@@ -302,9 +413,9 @@ export function activate(context: vscode.ExtensionContext) {
               const formattedText = selectedItem.format(result);
               
               // 将格式化后的结果缓存
-              if (baiduTranslator.cache && selectedItem.action !== 'detail' && selectedItem.action !== 'copy') {
+              if (translator.cache && selectedItem.action !== 'detail' && selectedItem.action !== 'copy') {
                 const cacheKey = `${text}|${selectedItem.label}`;
-                baiduTranslator.cache.set(cacheKey, formattedText, 'auto', 'en');
+                translator.cache.set(cacheKey, formattedText, 'auto', 'en');
               }
               
               // 根据不同的操作类型执行相应的动作
@@ -391,24 +502,32 @@ export function deactivate() {
 }
 
 /**
- * 检查百度翻译API配置并提示用户进行设置
+ * 检查翻译API配置并提示用户进行设置
  * 
  * 该函数在以下情况下被调用：
  * 1. 插件首次激活时
- * 2. 用户修改了百度翻译API相关配置后
+ * 2. 用户修改了翻译API相关配置后
  * 
- * @param translator 百度翻译器实例，用于检查配置有效性
+ * @param translator 翻译器实例，用于检查配置有效性
+ * @param apiType 翻译API类型，'baidu'或'tencent'
  * @param isInitialCheck 是否是初始检查，默认为true
- * @returns Promise<void>
+ * @returns Promise<boolean> 配置是否有效
  */
-async function checkAndPromptForConfiguration(translator: BaiduTranslator, isInitialCheck: boolean = true): Promise<void> {
+async function checkAndPromptForConfiguration(translator: BaiduTranslator | TencentTranslator, apiType: 'baidu' | 'tencent', isInitialCheck: boolean = true): Promise<boolean> {
   try {
     // 检查配置是否有效
     if (!translator.isConfigValid()) {
-      // 根据是否是初始检查选择不同的提示消息
-      const message = isInitialCheck
-        ? "欢迎使用uli-translation插件！请先配置百度翻译API的APPID和密钥。"
-        : "百度翻译API配置无效，请设置APPID和密钥。";
+      // 根据API类型和是否是初始检查选择不同的提示消息
+      let message = '';
+      if (apiType === 'baidu') {
+        message = isInitialCheck
+          ? "欢迎使用uli-translation插件！请先配置百度翻译API的APPID和密钥。"
+          : "百度翻译API配置无效，请设置APPID和密钥。";
+      } else {
+        message = isInitialCheck
+          ? "欢迎使用uli-translation插件！请先配置腾讯云机器翻译API的SecretId和SecretKey。"
+          : "腾讯云机器翻译API配置无效，请设置SecretId和SecretKey。";
+      }
       
       // 显示警告消息，并提供操作按钮
       const result = await vscode.window.showWarningMessage(
@@ -417,21 +536,26 @@ async function checkAndPromptForConfiguration(translator: BaiduTranslator, isIni
         "稍后再说"
       );
       
-      // 如果用户选择前往设置，则打开设置页面并聚焦到百度翻译API配置项
+      // 如果用户选择前往设置，则打开设置页面并聚焦到相应的翻译API配置项
       if (result === "前往设置") {
         await vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "uliTranslation.baidu"
+          `uliTranslation.${apiType}`
         );
       }
+      return false;
     } else if (isInitialCheck) {
       // 配置有效且是初次检查，显示成功消息
-      vscode.window.showInformationMessage("百度翻译API配置有效，可以开始使用翻译功能了！");
+      const apiName = apiType === 'baidu' ? '百度翻译API' : '腾讯云机器翻译API';
+      vscode.window.showInformationMessage(`${apiName}配置有效，可以开始使用翻译功能了！`);
+      return true;
     }
+    return true;
   } catch (error) {
     // 处理检查配置过程中可能出现的错误
-    console.error('检查配置时出错:', error);
-    vscode.window.showErrorMessage('检查百度翻译API配置时出错，请重新启动VSCode后再试');
+    console.error(`检查${apiType === 'baidu' ? '百度' : '腾讯'}翻译API配置时出错:`, error);
+    vscode.window.showErrorMessage(`检查${apiType === 'baidu' ? '百度' : '腾讯'}翻译API配置时出错，请重新启动VSCode后再试`);
+    return false;
   }
 }
 

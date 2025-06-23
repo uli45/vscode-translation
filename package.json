@@ -4,6 +4,7 @@
   "description": "uli的翻译插件",
   "version": "0.0.1",
   "publisher": "uli",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -28,22 +29,22 @@
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-        {
-          "command": "uli-translation.helloWorld",
-          "title": "Hello World"
-        },
-        {
-          "command": "uli-translation.translate",
-          "title": "ULI Translation: 翻译选中文本"
-        },
-        {
-          "command": "uli-translation.clearCache",
-          "title": "ULI Translation: 清空翻译缓存"
-        },
-        {
-          "command": "uli-translation.showCacheMetrics",
-          "title": "ULI Translation: 显示翻译缓存性能指标"
-        }
+      {
+        "command": "uli-translation.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "uli-translation.translate",
+        "title": "ULI Translation: 翻译选中文本"
+      },
+      {
+        "command": "uli-translation.clearCache",
+        "title": "ULI Translation: 清空翻译缓存"
+      },
+      {
+        "command": "uli-translation.showCacheMetrics",
+        "title": "ULI Translation: 显示翻译缓存性能指标"
+      }
     ],
     "keybindings": [
       {
@@ -71,6 +72,26 @@
           "default": "",
           "description": "百度翻译API的salt值（可选）"
         },
+        "uliTranslation.tencent.secretId": {
+          "type": "string",
+          "default": "",
+          "description": "腾讯云API的SecretId"
+        },
+        "uliTranslation.tencent.secretKey": {
+          "type": "string",
+          "default": "",
+          "description": "腾讯云API的SecretKey"
+        },
+        "uliTranslation.tencent.region": {
+          "type": "string",
+          "default": "ap-guangzhou",
+          "description": "腾讯云API的地域，默认为ap-guangzhou"
+        },
+        "uliTranslation.tencent.projectId": {
+          "type": "number",
+          "default": 0,
+          "description": "腾讯云项目ID，默认为0"
+        },
         "uliTranslation.cache.expirationDays": {
           "type": "number",
           "default": 3,
@@ -79,12 +100,21 @@
           "description": "翻译缓存的过期天数，默认为3天"
         },
         "uliTranslation.cache.maxSizeMB": {
-            "type": "number",
-            "default": 20,
-            "minimum": 5,
-            "maximum": 100,
-            "description": "翻译缓存的最大大小（MB），较小的值可提高响应速度，建议保持在20MB以内以确保本地响应在500ms内"
-          }
+          "type": "number",
+          "default": 20,
+          "minimum": 5,
+          "maximum": 100,
+          "description": "翻译缓存的最大大小（MB），较小的值可提高响应速度，建议保持在20MB以内以确保本地响应在500ms内"
+        },
+        "uliTranslation.defaultTranslator": {
+          "type": "string",
+          "enum": [
+            "baidu",
+            "tencent"
+          ],
+          "default": "baidu",
+          "description": "默认使用的翻译API，可选择百度翻译或腾讯云翻译"
+        }
       }
     }
   },
@@ -103,16 +133,17 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.101.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "eslint": "^9.25.1",
-    "esbuild": "^0.25.3",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.25.3",
+    "eslint": "^9.25.1",
+    "npm-run-all": "^4.1.5",
+    "sharp": "^0.34.2",
+    "typescript": "^5.8.3"
   }
 }

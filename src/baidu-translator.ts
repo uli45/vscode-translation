@@ -126,6 +126,14 @@ export class BaiduTranslator {
   }
 
   /**
+   * 重新加载配置
+   * 从VSCode设置中重新加载百度翻译API的配置
+   */
+  public reloadConfig(): void {
+    this.loadConfig();
+  }
+
+  /**
    * 检查百度翻译API配置是否有效
    * 有效的配置必须同时包含appid和key
    * salt是可选的，如果未设置会自动生成
