@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "publisher": "uli",
   "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uli/uli-translation.git"
+  },
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -131,7 +135,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "@types/vscode": "^1.101.0",
+    "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
