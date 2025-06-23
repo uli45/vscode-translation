@@ -140,18 +140,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // 将配置监听器添加到订阅列表，确保插件停用时正确清理
   context.subscriptions.push(configListener);
 
-  /**
-   * 注册Hello World命令（示例命令）
-   * 该命令仅用于演示，显示一个简单的问候消息
-   */
-  const helloWorldDisposable = vscode.commands.registerCommand(
-    "uli-translation.helloWorld",
-    () => {
-      // 显示一个简单的信息提示框
-      vscode.window.showInformationMessage("Hello World from uli-translation!");
-    }
-  );
-  
+
   /**
    * 注册显示缓存性能指标的命令
    * 该命令显示当前缓存的命中率、响应时间和大小等性能指标
@@ -483,7 +472,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // 将命令添加到订阅列表中，确保插件停用时正确清理资源
-  context.subscriptions.push(helloWorldDisposable);
   context.subscriptions.push(translateDisposable);
   context.subscriptions.push(showCacheMetricsDisposable);
   context.subscriptions.push(clearCacheDisposable);

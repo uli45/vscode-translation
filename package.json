@@ -29,10 +29,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "uli-translation.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "uli-translation.translate",
         "title": "ULI Translation: 翻译选中文本"
       },
