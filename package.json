@@ -1,0 +1,118 @@
+{
+  "name": "uli-translation",
+  "displayName": "uli-translation",
+  "description": "uli的翻译插件",
+  "version": "0.0.1",
+  "publisher": "uli",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "uli-translation",
+    "translation"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:uli-translation.translate",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:html",
+    "onLanguage:css",
+    "onLanguage:json",
+    "onLanguage:markdown",
+    "workspaceContains:package.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+        {
+          "command": "uli-translation.helloWorld",
+          "title": "Hello World"
+        },
+        {
+          "command": "uli-translation.translate",
+          "title": "ULI Translation: 翻译选中文本"
+        },
+        {
+          "command": "uli-translation.clearCache",
+          "title": "ULI Translation: 清空翻译缓存"
+        },
+        {
+          "command": "uli-translation.showCacheMetrics",
+          "title": "ULI Translation: 显示翻译缓存性能指标"
+        }
+    ],
+    "keybindings": [
+      {
+        "command": "uli-translation.translate",
+        "key": "ctrl+t",
+        "mac": "ctrl+cmd+t",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Uli Translation",
+      "properties": {
+        "uliTranslation.baidu.appid": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译API的APPID"
+        },
+        "uliTranslation.baidu.key": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译API的密钥"
+        },
+        "uliTranslation.baidu.salt": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译API的salt值（可选）"
+        },
+        "uliTranslation.cache.expirationDays": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "翻译缓存的过期天数，默认为3天"
+        },
+        "uliTranslation.cache.maxSizeMB": {
+            "type": "number",
+            "default": 20,
+            "minimum": 5,
+            "maximum": 100,
+            "description": "翻译缓存的最大大小（MB），较小的值可提高响应速度，建议保持在20MB以内以确保本地响应在500ms内"
+          }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run package",
+    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.101.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "esbuild": "^0.25.3",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
